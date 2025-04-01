@@ -32,7 +32,7 @@ local function read_js_runtime_config(file_path)
 			root_dir = root_dir,
 		}
 	else
-		print("Invaid runtime was found in " .. lock_file .. " please set runtime with SetJsRuntime")
+		print("Invalid runtime was found in " .. lock_file .. " please set runtime with SetJsRuntime")
 		return nil
 	end
 end
@@ -42,7 +42,7 @@ end
 local function write_js_runtime_config(file_path, runtime)
 	local root_dir = find_root_dir(file_path)
 	if root_dir == nil then
-		print("Javasciript root pattern was not found")
+		print("Javascript root pattern was not found")
 	end
 
 	local config_dir = root_dir .. "/.nvim"
@@ -75,7 +75,7 @@ end
 vim.api.nvim_create_user_command("SetJsRuntime", function()
 	local current_file = vim.fn.expand("%:p")
 	if find_root_dir(current_file) == nil then
-		error("Javasciript root pattern was not found")
+		error("Javascript root pattern was not found")
 	end
 
 	local runtime = vim.fn.input({
@@ -92,4 +92,5 @@ return {
 	node_root_dir = runtime_root_function("node"),
 	deno_root_dir = runtime_root_function("deno"),
 	bun_root_dir = runtime_root_function("bun"),
+	js_runtime_config = read_js_runtime_config,
 }
