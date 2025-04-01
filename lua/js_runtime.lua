@@ -57,7 +57,7 @@ end
 
 --- @param runtime Runtime
 --- @return fun(file_path : string): string | nil
-local function runtime_root_function(runtime)
+local function create_runtime_function(runtime)
 	return function(file_path)
 		local runtime_info = read_js_runtime_config(file_path)
 		if runtime_info == nil then
@@ -89,8 +89,8 @@ end, {
 })
 
 return {
-	node_root_dir = runtime_root_function("node"),
-	deno_root_dir = runtime_root_function("deno"),
-	bun_root_dir = runtime_root_function("bun"),
+	node_root_dir = create_runtime_function("node"),
+	deno_root_dir = create_runtime_function("deno"),
+	bun_root_dir = create_runtime_function("bun"),
 	js_runtime_config = read_js_runtime_config,
 }
