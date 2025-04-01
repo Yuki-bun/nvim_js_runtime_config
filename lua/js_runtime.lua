@@ -1,8 +1,36 @@
+local uv = vim.uv
+
 --- find root directory by look for package.json, deno.json
 --- @param file_path string
 --- @return string | nil
-local function find_root_dir(file_path)
-	return vim.fs.root(file_path, { "package.json", "deno.json" })
+local function find_config_dir(file_path)
+	local function is_root(path)
+		local parent = uv.fs_realpath(uv.fs_realpath(path) .. "/..")
+		return path == parent
+	end
+
+	local function exists(path)
+		return uv.fs_stat(path) ~= nil
+	end
+
+	local function has_required_files(path)
+		return (
+			(exists(path .. "/package.json") or exists(path .. "/deno.json"))
+			and exists(path .. "/.nvim/js_runtime.lock")
+		)
+	end
+
+	local dir = uv.fs_realpath(vim.fn.fnamemodify(file_path, ":p:h"))
+
+	while dir do
+		if has_required_files(dir) then
+			return dir
+		end
+		if is_root(dir) then
+			return nil
+		end
+		dir = uv.fs_realpath(dir .. "/..")
+	end
 end
 
 --- @alias Runtime 'node' | 'deno' | 'bun'
@@ -14,13 +42,13 @@ end
 --- @param file_path string
 --- @return RuntimInfo | nil
 local function read_js_runtime_config(file_path)
-	local root_dir = find_root_dir(file_path)
+	local config_dir = find_config_dir(file_path)
 
-	if root_dir == nil then
+	if config_dir == nil then
 		return nil
 	end
 
-	local lock_file = root_dir .. "/.nvim/js_runtime.lock"
+	local lock_file = config_dir .. "/.nvim/js_runtime.lock"
 	if vim.fn.filereadable(lock_file) == 0 then
 		return nil
 	end
@@ -29,30 +57,12 @@ local function read_js_runtime_config(file_path)
 	if runtime == "node" or runtime == "deno" or runtime == "bun" then
 		return {
 			runtime = runtime,
-			root_dir = root_dir,
+			root_dir = config_dir,
 		}
 	else
 		print("Invalid runtime was found in " .. lock_file .. " please set runtime with SetJsRuntime")
 		return nil
 	end
-end
-
---- @param file_path string
---- @param runtime Runtime
-local function write_js_runtime_config(file_path, runtime)
-	local root_dir = find_root_dir(file_path)
-	if root_dir == nil then
-		print("Javascript root pattern was not found")
-	end
-
-	local config_dir = root_dir .. "/.nvim"
-	local lock_file = root_dir .. "/.nvim/js_runtime.lock"
-
-	if vim.fn.isdirectory(config_dir) == 0 then
-		vim.fn.mkdir(config_dir)
-	end
-
-	vim.fn.writefile({ runtime }, lock_file)
 end
 
 --- @param runtime Runtime
@@ -73,17 +83,19 @@ local function create_runtime_function(runtime)
 end
 
 vim.api.nvim_create_user_command("SetJsRuntime", function()
-	local current_file = vim.fn.expand("%:p")
-	if find_root_dir(current_file) == nil then
-		error("Javascript root pattern was not found")
-	end
-
 	local runtime = vim.fn.input({
 		prompt = "Set javascript runtime (node, deno, bun): ",
 		options = { "node", "deno", "bun" },
 	})
 
-	write_js_runtime_config(current_file, runtime)
+	local config_dir = vim.uv.cwd() .. "/.nvim"
+	local lock_file = config_dir .. "/js_runtime.lock"
+
+	if vim.fn.isdirectory(config_dir) == 0 then
+		vim.fn.mkdir(config_dir)
+	end
+
+	vim.fn.writefile({ runtime }, lock_file)
 end, {
 	desc = "Set javascript runtime",
 })
